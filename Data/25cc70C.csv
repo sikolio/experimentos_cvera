@@ -1,2 +1,2 @@
-densidad manjar;modelo 3D;volumen total teorico;t amb;termocupla;caudal;angulo inclinacion;NOMBRE;Obs;Exp #;uso manjar;t max;fecha
-1240;nan;0.00143;24.8;si, punto eyeccion;2.5e-05;10;25cc70C;nan;10;?;69.7;2016-06-27 00:00:00
+densidad manjar;modelo 3D;volumen total teorico;t amb;termocupla;caudal;angulo inclinacion;NOMBRE;Obs;Exp #;uso manjar;t max;fecha;min;max;framei;framef
+1240;nan;0.00143;24.8;si, punto eyeccion;2.5e-05;10;25cc70C;nan;10;?;69.7;27/06/2016 0:00;29;67;21;2000

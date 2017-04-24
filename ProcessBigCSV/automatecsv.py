@@ -45,8 +45,8 @@ def useFile(camino, salida, start, finish, highLimit, lowLimit, rangosdetemp):
     
 for row in file.iterrows():
     print(row)
-    minimum = float(row[1]['min'].replace(',','.'))
-    maximum = float(row[1]['max'].replace(',','.'))
+    minimum = row[1]['min']
+    maximum = row[1]['max']
     lowLimit = 20
     highLimit = 70
     start = row[1]['inicial']

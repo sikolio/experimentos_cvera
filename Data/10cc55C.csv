@@ -1,2 +1,2 @@
-densidad manjar;modelo 3D;volumen total teorico;t amb;termocupla;caudal;angulo inclinacion;NOMBRE;Obs;Exp #;uso manjar;t max;fecha
-1240;hay fotos;0.00143;23.2;no;1e-05;10.6;10cc55C;nan;22;1;55;2016-09-26 00:00:00
+densidad manjar;modelo 3D;volumen total teorico;t amb;termocupla;caudal;angulo inclinacion;NOMBRE;Obs;Exp #;uso manjar;t max;fecha;min;max;framei;framef
+1240;hay fotos;0.00143;23.2;no;1,00E-05;10.6;10cc55C;nan;22;1;55;26/09/2016 0:00;25;58;68;2800

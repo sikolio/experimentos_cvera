@@ -1,7 +1,5 @@
-path;nombre;temp;csv listo;csv procesado;min;max;inicial;final;rangos +1
-C:\Users\CCVV\Desktop\1cc51C.csv;1cc51C - flir.csv;59,9;x;;26,5;51;32;1800;10
-C:\Users\CCVV\Desktop\1cc55C.csv;1cc55C - flir.csv;58,6;x;;27,5;54;82;2200;10
-C:\Users\CCVV\Desktop\5cc58C.csv;5cc58C - flir.csv;49,6;x;;24;61;51;3200;10
-C:\Users\CCVV\Desktop\10cc49C.csv;10cc49C - flir.csv;53,1;x;;28,6;49;21;1600;10
-C:\Users\CCVV\Desktop\10cc55C.csv;10cc55C - flir.csv;54,4;x;;x25;58;68;2800;10
-C:\Users\CCVV\Desktop\1cc48C.csv;1cc48C - flir.csv;58;x;;26;48;19;2100;10
+path;nombre;temp;csv listo;csv procesado;min;max;inicial;final;rangos +1;
+C:\Users\CCVV\Desktop\1cc51C.csv;1cc51C - flir.csv;59,9;x;;27;51;32;1800;10;
+C:\Users\CCVV\Desktop\1cc55C.csv;1cc55C - flir.csv;58,6;x;;28;54;82;2200;10;"-F ""C:\Users\CCVV\Desktop\1cc55C.csv"" -O ""1cc55C - flir.csv"" -LL ""20"" -HL ""70"" -MIN ""28"" -MAX ""54"" -R ""10"" -S ""82"" -N ""2200""  "
+C:\Users\CCVV\Desktop\5cc58C.csv;5cc58C - flir.csv;49,6;x;;24;61;51;3200;10;"-F ""C:\Users\CCVV\Desktop\5cc58C.csv"" -O ""5cc58C - flir.csv"" -LL ""20"" -HL ""70"" -MIN ""24"" -MAX ""61"" -R ""10"" -S ""51"" -N ""3200""  "
+C:\Users\CCVV\Desktop\10cc49C.csv;10cc49C - flir.csv;53,1;x;;29;49;21;1600;10;"-F ""C:\Users\CCVV\Desktop\10cc49C.csv"" -O ""10cc49C - flir.csv"" -LL ""20"" -HL ""70"" -MIN ""28,6"" -MAX ""49"" -R ""10"" -S ""21"" -N ""1600""  "
