@@ -63,6 +63,19 @@ class Experimento(object):
     def undone(self):
         for file in self.files:
             os.rename('{}.old'.format(file), file)
+
+    #funcion que calcula los rangos de velocidades del flir.
+    def get_ranges(self):
+        if self.flir is None:
+            return []
+        
+        tmin, tmax = self.param['min'][0], self.param['max'][0]
+        return [a for a in np.linspace(tmin, tmax, 10)]
+
+    #funcion que determina en que rango esta la temperatura dada
+    def rango_temperatura(self, temp):
+        bins = self.get_ranges()
+        return np.digitize([temp], bins)[0] + 1
     
     #funcion para generar rectas segun x datos de DF dinamica
     def fit_to_two_curves(self):
