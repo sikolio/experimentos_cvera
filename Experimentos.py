@@ -7,8 +7,32 @@ import csv
 import numpy as np
 from matplotlib import pyplot as plt
 
+from sympy import solve
+from sympy.abc import x
+
+from scipy import optimize
+import scipy.spatial.distance as distance
+
+
 #lectura de archivos
 FILE_ENDINGS = ['.csv', ' - dinamica.csv', ' - perfil.csv', ' - flir.csv']
+
+#UTILS
+
+def piecewise_linear(x, x0, x1, x2, y0, k1, k2, k3):
+    return np.piecewise(x, [x < x0, (x < x1) & (x >= x0), x >= x1], 
+                        [generate_function(k1, x0, y0), 
+                         generate_function(k2, x1, y0),
+                         generate_function(k3, x2, y0)])
+
+def generate_ecuation_from_two_rects(k1, x0_1, y0_1, k2, x0_2, y0_2):
+    return '{} * x + {}'.format(k1 - k2, (k1 * x0_1 * y0_1) - (k2 * x0_2 * y0_2))
+
+def generate_ecuation(k, x0, y0):
+    return '{}*x + {}'.format(k, k * x0 * y0)
+
+def generate_function(k, x0, y0):
+    return lambda x: k*x + y0-k*x0
 
 #Experimento es una lista que guarda todos los experimentos y accede a los DF que son los definidos en file_endings
 class Experimento(object):
@@ -86,6 +110,50 @@ class Experimento(object):
         
         x = np.array(self.dinamica['avance: tiempo'])
         y = np.array(self.dinamica['avance: largo total'])
+
+    #fit to 3 curves, return 3 slopes and the 2 nearest points to the intersections
+    def get_closest_points_to_intersections(self, interactive=True):
+        xs = np.log(np.array(self.dinamica['avance: tiempo'][1:] / 1000))
+        ys = np.log(np.array(self.dinamica['avance: largo total flujo'][1:]))
+        
+        p , e = optimize.curve_fit(piecewise_linear, xs, ys)
+        xd = np.linspace(xs[0], xs[-1], 100)
+        
+        x_interseccion1 = solve(generate_ecuation_from_two_rects(p[4], p[0], p[3], p[5], p[1], p[3]), x)[0]
+        x_interseccion2 = solve(generate_ecuation_from_two_rects(p[5], p[1], p[3], p[6], p[2], p[3]), x)[0]
+        
+        pendiente1 = p[4]
+        pendiente2 = p[5]
+        pendiente3 = p[6]
+        
+        interseccion1 = (x_interseccion1, generate_function(p[4], p[0], p[3])(x_interseccion1))
+        interseccion2 = (x_interseccion2, generate_function(p[6], p[2], p[3])(x_interseccion2))
+        
+        index_inter1 = distance.cdist([interseccion1], np.array(list(zip(xs, ys)))).argmin()
+        index_inter2 = distance.cdist([interseccion2], np.array(list(zip(xs, ys)))).argmin()
+        
+        closest_int1 = list(zip(xs, ys))[index_inter1]
+        closest_int2 = list(zip(xs, ys))[index_inter2]
+
+        if interactive:
+            plt.plot(xs, ys, "o")
+            print(['{}'.format(px) for px in p])
+            print(e)
+        
+        
+            plt.plot(xd, generate_function(p[4], p[0], p[3])(xd))
+            plt.plot(xd, generate_function(p[5], p[1], p[3])(xd))
+            plt.plot(xd, generate_function(p[6], p[2], p[3])(xd))
+            
+            plt.plot([interseccion1[0]], [interseccion1[1]], 'rx')
+            plt.plot([interseccion2[0]], [interseccion2[1]], 'bx')
+            
+            plt.plot([closest_int1[0]], closest_int1[1], 'r+')
+            plt.plot([closest_int2[0]], closest_int2[1], 'b+')
+            
+            plt.show()
+            
+        return pendiente1, pendiente2, pendiente3, closest_int1, closest_int2
     
     #no entiendo pa que wea sirve esta funcion...claramente es un plot de desglose, pero pa que? esos datos meh.
     def plot_desglose(self, param1, param2):
