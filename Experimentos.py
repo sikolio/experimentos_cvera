@@ -99,8 +99,21 @@ class Experimento(object):
     #funcion que determina en que rango esta la temperatura dada
     def rango_temperatura(self, temp):
         bins = self.get_ranges()
-        return np.digitize([temp], bins)[0] + 1
-    
+        if len(bins) < 1:
+            return 0
+        return np.digitize([temp], bins)[0]
+
+    def eliminate_outliers(self, std_count=2):
+        if self.flir is None:
+            return None
+        df = self.flir.copy()
+        df['moving average'] = df['FLIR: area'].rolling(20, center=True).median().fillna(method='bfill').fillna(method='ffill')
+        df['moving std'] = df['FLIR: area'].rolling(20, center=True).std().fillna(method='bfill').fillna(method='ffill')
+
+        df = df[np.abs(df['FLIR: area'] - df['moving average'])<=(2*df['moving std'])]
+        self.flir = df
+        return self.flir
+
     #funcion para generar rectas segun x datos de DF dinamica
     def fit_to_two_curves(self):
         def two_lines(x, a, b, c, d):
