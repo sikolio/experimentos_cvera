@@ -19,13 +19,37 @@ FILE_ENDINGS = ['.csv', ' - dinamica.csv', ' - perfil.csv', ' - flir.csv']
 
 #UTILS
 
-def piecewise_linear(x, x0, x1, x2, y0, k1, k2, k3):
+def line(p1, p2):
+    A = (p1[1] - p2[1])
+    B = (p2[0] - p1[0])
+    C = (p1[0]*p2[1] - p2[0]*p1[1])
+    return A, B, -C
+
+def intersection(L1, L2):
+    D  = L1[0] * L2[1] - L1[1] * L2[0]
+    Dx = L1[2] * L2[1] - L1[1] * L2[2]
+    Dy = L1[0] * L2[2] - L1[2] * L2[0]
+    if D != 0:
+        x = Dx / D
+        y = Dy / D
+        return x,y
+    else:
+        return False
+
+def piecewise_linear_double(x, x0, y0, k1, k2):
+    return np.piecewise(x, [x < x0, x >= x0], 
+                           [generate_function(k1, x0, y0),
+                            generate_function(k2, x0, y0)])
+
+def piecewise_linear_triple(x, x0, x1, x2, y0, k1, k2, k3):
     return np.piecewise(x, [x < x0, (x < x1) & (x >= x0), x >= x1], 
                         [generate_function(k1, x0, y0), 
                          generate_function(k2, x1, y0),
                          generate_function(k3, x2, y0)])
 
 def generate_ecuation_from_two_rects(k1, x0_1, y0_1, k2, x0_2, y0_2):
+
+
     return '{} * x + {}'.format(k1 - k2, (k1 * x0_1 * y0_1) - (k2 * x0_2 * y0_2))
 
 def generate_ecuation(k, x0, y0):
@@ -129,44 +153,95 @@ class Experimento(object):
         xs = np.log(np.array(self.dinamica['avance: tiempo'][1:] / 1000))
         ys = np.log(np.array(self.dinamica['avance: largo total flujo'][1:]))
         
-        p , e = optimize.curve_fit(piecewise_linear, xs, ys)
-        xd = np.linspace(xs[0], xs[-1], 100)
-        
-        x_interseccion1 = solve(generate_ecuation_from_two_rects(p[4], p[0], p[3], p[5], p[1], p[3]), x)[0]
-        x_interseccion2 = solve(generate_ecuation_from_two_rects(p[5], p[1], p[3], p[6], p[2], p[3]), x)[0]
-        
-        pendiente1 = p[4]
-        pendiente2 = p[5]
-        pendiente3 = p[6]
-        
-        interseccion1 = (x_interseccion1, generate_function(p[4], p[0], p[3])(x_interseccion1))
-        interseccion2 = (x_interseccion2, generate_function(p[6], p[2], p[3])(x_interseccion2))
-        
-        index_inter1 = distance.cdist([interseccion1], np.array(list(zip(xs, ys)))).argmin()
-        index_inter2 = distance.cdist([interseccion2], np.array(list(zip(xs, ys)))).argmin()
-        
-        closest_int1 = list(zip(xs, ys))[index_inter1]
-        closest_int2 = list(zip(xs, ys))[index_inter2]
+        try:
+            p , e = optimize.curve_fit(piecewise_linear_triple, xs, ys)
+            if e[0][0] == float('inf') or e[0][0] == float('-inf'):
+                raise ValueError('Infinity and beyond')
+            xd = np.linspace(xs[0], xs[-1], 100)
 
-        if interactive:
-            plt.plot(xs, ys, "o")
-            print(['{}'.format(px) for px in p])
+            rect1 = generate_function(p[4], p[0], p[3])
+            rect2 = generate_function(p[5], p[1], p[3])
+            rect3 = generate_function(p[6], p[2], p[3])
+
+            intersection1 = intersection(
+                line((xd[10], rect1(xd[10])), (xd[90], rect1(xd[90]))),
+                line((xd[10], rect2(xd[10])), (xd[90], rect2(xd[90])))                
+            )
+            intersection2 = intersection(
+                line((xd[10], rect2(xd[10])), (xd[90], rect2(xd[90]))),
+                line((xd[10], rect3(xd[10])), (xd[90], rect3(xd[90])))           
+            )
+            
+            pendiente1 = p[4]
+            pendiente2 = p[5]
+            pendiente3 = p[6]
+            
+            
+            index_inter1 = distance.cdist([intersection1], np.array(list(zip(xs, ys)))).argmin()
+            index_inter2 = distance.cdist([intersection2], np.array(list(zip(xs, ys)))).argmin()
+            
+            closest_int1 = list(zip(xs, ys))[index_inter1]
+            closest_int2 = list(zip(xs, ys))[index_inter2]
+
+            if interactive:
+                plt.plot(xs, ys, "o")
+                print(['{}'.format(px) for px in p])
+                print(e)
+            
+            
+                plt.plot(xd, generate_function(p[4], p[0], p[3])(xd))
+                plt.plot(xd, generate_function(p[5], p[1], p[3])(xd))
+                plt.plot(xd, generate_function(p[6], p[2], p[3])(xd))
+                
+                plt.plot([intersection1[0]], [intersection1[1]], 'rx')
+                plt.plot([intersection2[0]], [intersection2[1]], 'bx')
+                
+                plt.plot([closest_int1[0]], closest_int1[1], 'r+')
+                plt.plot([closest_int2[0]], closest_int2[1], 'b+')
+                
+                plt.show()
+                
+            return pendiente1, pendiente2, pendiente3, closest_int1, closest_int2
+        except Exception as e:
             print(e)
-        
-        
-            plt.plot(xd, generate_function(p[4], p[0], p[3])(xd))
-            plt.plot(xd, generate_function(p[5], p[1], p[3])(xd))
-            plt.plot(xd, generate_function(p[6], p[2], p[3])(xd))
+
+            xs = np.log(np.array(self.dinamica['avance: tiempo'][1:]))
             
-            plt.plot([interseccion1[0]], [interseccion1[1]], 'rx')
-            plt.plot([interseccion2[0]], [interseccion2[1]], 'bx')
+            p , e = optimize.curve_fit(piecewise_linear_double, xs, ys)
+            xd = np.linspace(xs[0], xs[-1], 100)
             
-            plt.plot([closest_int1[0]], closest_int1[1], 'r+')
-            plt.plot([closest_int2[0]], closest_int2[1], 'b+')
+            rect1 = generate_function(p[2], p[0], p[1])
+            rect2 = generate_function(p[3], p[0], p[1])
+
+            intersection1 = intersection(
+                line((xd[10], rect1(xd[10])), (xd[90], rect1(xd[90]))),
+                line((xd[10], rect2(xd[10])), (xd[90], rect2(xd[90])))                
+            )
             
-            plt.show()
+            pendiente1 = p[2]
+            pendiente2 = p[3]
             
-        return pendiente1, pendiente2, pendiente3, closest_int1, closest_int2
+            index_inter1 = distance.cdist([intersection1], np.array(list(zip(xs, ys)))).argmin()
+            
+            closest_int1 = list(zip(xs, ys))[index_inter1]
+
+            if interactive:
+                plt.plot(xs, ys, "o")
+                print(['{}'.format(px) for px in p])
+                print(e)
+            
+            
+                plt.plot(xd, generate_function(p[2], p[0], p[1])(xd))
+                plt.plot(xd, generate_function(p[3], p[0], p[1])(xd))
+                
+                plt.plot([intersection1[0]], [intersection1[1]], 'rx')
+                
+                plt.plot([closest_int1[0]], closest_int1[1], 'r+')
+                
+                plt.show()
+                
+            return pendiente1, pendiente2, closest_int1
+
     
     #no entiendo pa que wea sirve esta funcion...claramente es un plot de desglose, pero pa que? esos datos meh.
     def plot_desglose(self, param1, param2):
