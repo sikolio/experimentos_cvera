@@ -13,15 +13,92 @@ from sympy.abc import x
 from scipy import optimize
 import scipy.spatial.distance as distance
 
+from math import atan2,degrees
 
 #lectura de archivos
 FILE_ENDINGS = ['.csv', ' - dinamica.csv', ' - perfil.csv', ' - flir.csv']
 
 #UTILS
 
+def labelLine(line,x,label=None,align=True,**kwargs):
+
+    ax = line.axes
+    xdata = line.get_xdata()
+    ydata = line.get_ydata()
+
+    if (x < xdata[0]) or (x > xdata[-1]):
+        print('x label location is outside data range!')
+        return
+
+    #Find corresponding y co-ordinate and angle of the
+    ip = 1
+    for i in range(len(xdata)):
+        if x < xdata[i]:
+            ip = i
+            break
+
+    y = ydata[ip-1] + (ydata[ip]-ydata[ip-1])*(x-xdata[ip-1])/(xdata[ip]-xdata[ip-1])
+
+    if not label:
+        label = line.get_label()
+
+    if align:
+        #Compute the slope
+        dx = xdata[ip] - xdata[ip-1]
+        dy = ydata[ip] - ydata[ip-1]
+        ang = degrees(atan2(dy,dx))
+
+        #Transform to screen co-ordinates
+        pt = np.array([x,y]).reshape((1,2))
+        trans_angle = ax.transData.transform_angles(np.array((ang,)),pt)[0]
+
+    else:
+        trans_angle = 0
+
+    #Set a bunch of keyword arguments
+    if 'color' not in kwargs:
+        kwargs['color'] = line.get_color()
+
+    if ('horizontalalignment' not in kwargs) and ('ha' not in kwargs):
+        kwargs['ha'] = 'center'
+
+    if ('verticalalignment' not in kwargs) and ('va' not in kwargs):
+        kwargs['va'] = 'center'
+
+    if 'backgroundcolor' not in kwargs:
+        kwargs['backgroundcolor'] = ax.get_facecolor()
+
+    if 'clip_on' not in kwargs:
+        kwargs['clip_on'] = True
+
+    if 'zorder' not in kwargs:
+        kwargs['zorder'] = 2.5
+
+    ax.text(x,y,label,rotation=trans_angle,**kwargs)
+
+def labelLines(lines,align=True,xvals=None,**kwargs):
+
+    ax = lines[0].axes
+    labLines = []
+    labels = []
+
+    #Take only the lines which have labels other than the default ones
+    for line in lines:
+        label = line.get_label()
+        if "_line" not in label:
+            labLines.append(line)
+            labels.append(label)
+
+    if xvals is None:
+        xmin,xmax = ax.get_xlim()
+        xvals = np.linspace(xmin,xmax,len(labLines)+2)[1:-1]
+
+    for line,x,label in zip(labLines,xvals,labels):
+        labelLine(line,x,label,align,**kwargs)
+
 def piecewise_linear(x, x0, x1, x2, y0, k1, k2, k3):
-    return np.piecewise(x, [x < x0, (x < x1) & (x >= x0), x >= x1], 
-                        [generate_function(k1, x0, y0), 
+    return np.piecewise(x, [x < x0, (x < x1) & (x >= x0), x >= x1],
+                        [generate_function(k1, x0, y0),
                          generate_function(k2, x1, y0),
                          generate_function(k3, x2, y0)])
 
@@ -39,7 +116,7 @@ class Experimento(object):
     def __init__(self, filename, folder="."):
         self.files = ['{}{}'.format(filename, file_ending) for file_ending in FILE_ENDINGS]
         self.folder = folder
-            
+
         pandas_settings = {
             'delimiter': ';',
             'thousands': '.',
@@ -52,18 +129,19 @@ class Experimento(object):
         self.perfil = pd.read_csv(os.path.join(folder, self.files[2]), **pandas_settings)
         try:
             self.flir = pd.read_csv(os.path.join(folder, self.files[3]), **pandas_settings)
+            self.eliminate_outliers()
         except Exception as e:
             print(e)
             self.flir = None
-        
+
         #paso los resultados de dinamica a param para poder usarlos facilmente
         self.param['result: largo final'] = self.dinamica['avance: distancia desde punto eyeccion'].iloc[-1]
         self.param['result: largo total'] = self.dinamica['avance: largo total flujo'].iloc[-1]
         self.param['result: ancho max final'] = self.dinamica['avance: ancho maximo'].iloc[-1]
         self.param['result: espesor max final'] = self.perfil['perfil: espesor'].max()
         self.param['result: distancia espesor final'] = self.perfil['perfil: distancia'].iloc[self.perfil['perfil: espesor'].argmax()]
-        
-    #se guarda el nuevo archivo con los datos sacados de distintos DF  
+
+    #se guarda el nuevo archivo con los datos sacados de distintos DF
     def to_csvs(self, safe=False):
         if safe:
             try:
@@ -75,7 +153,7 @@ class Experimento(object):
         else:
             for file in self.files:
                 os.remove(file)
-        
+
         self.param.to_csv(os.path.join(folder, self.files[0]), sep=';')
         self.dinamica.to_csv(os.path.join(folder, self.files[1]), sep=';')
         self.perfil.to_csv(os.path.join(folder, self.files[2]), sep=';')
@@ -83,7 +161,7 @@ class Experimento(object):
             self.flir.to_csv(os.path.join(folder, self.files[3]), sep=';')
 
 
-    #a ver si ya se ha hecho este proceso con los archivos y generar una version .old    
+    #a ver si ya se ha hecho este proceso con los archivos y generar una version .old
     def undone(self):
         for file in self.files:
             os.rename('{}.old'.format(file), file)
@@ -92,7 +170,7 @@ class Experimento(object):
     def get_ranges(self):
         if self.flir is None:
             return []
-        
+
         tmin, tmax = self.param['min'][0], self.param['max'][0]
         return [a for a in np.linspace(tmin, tmax, 10)]
 
@@ -120,7 +198,7 @@ class Experimento(object):
             one = a*x + b
             two = c*x + d
             return np.maximum(one, two)
-        
+
         x = np.array(self.dinamica['avance: tiempo'])
         y = np.array(self.dinamica['avance: largo total'])
 
@@ -128,23 +206,23 @@ class Experimento(object):
     def get_closest_points_to_intersections(self, interactive=True):
         xs = np.log(np.array(self.dinamica['avance: tiempo'][1:] / 1000))
         ys = np.log(np.array(self.dinamica['avance: largo total flujo'][1:]))
-        
+
         p , e = optimize.curve_fit(piecewise_linear, xs, ys)
         xd = np.linspace(xs[0], xs[-1], 100)
-        
+
         x_interseccion1 = solve(generate_ecuation_from_two_rects(p[4], p[0], p[3], p[5], p[1], p[3]), x)[0]
         x_interseccion2 = solve(generate_ecuation_from_two_rects(p[5], p[1], p[3], p[6], p[2], p[3]), x)[0]
-        
+
         pendiente1 = p[4]
         pendiente2 = p[5]
         pendiente3 = p[6]
-        
+
         interseccion1 = (x_interseccion1, generate_function(p[4], p[0], p[3])(x_interseccion1))
         interseccion2 = (x_interseccion2, generate_function(p[6], p[2], p[3])(x_interseccion2))
-        
+
         index_inter1 = distance.cdist([interseccion1], np.array(list(zip(xs, ys)))).argmin()
         index_inter2 = distance.cdist([interseccion2], np.array(list(zip(xs, ys)))).argmin()
-        
+
         closest_int1 = list(zip(xs, ys))[index_inter1]
         closest_int2 = list(zip(xs, ys))[index_inter2]
 
@@ -152,22 +230,22 @@ class Experimento(object):
             plt.plot(xs, ys, "o")
             print(['{}'.format(px) for px in p])
             print(e)
-        
-        
+
+
             plt.plot(xd, generate_function(p[4], p[0], p[3])(xd))
             plt.plot(xd, generate_function(p[5], p[1], p[3])(xd))
             plt.plot(xd, generate_function(p[6], p[2], p[3])(xd))
-            
+
             plt.plot([interseccion1[0]], [interseccion1[1]], 'rx')
             plt.plot([interseccion2[0]], [interseccion2[1]], 'bx')
-            
+
             plt.plot([closest_int1[0]], closest_int1[1], 'r+')
             plt.plot([closest_int2[0]], closest_int2[1], 'b+')
-            
+
             plt.show()
-            
+
         return pendiente1, pendiente2, pendiente3, closest_int1, closest_int2
-    
+
     #no entiendo pa que wea sirve esta funcion...claramente es un plot de desglose, pero pa que? esos datos meh.
     def plot_desglose(self, param1, param2):
         fig = plt.figure()
@@ -175,10 +253,10 @@ class Experimento(object):
 
         ax.plot(self.flir['FLIR: rango 3'], self.flir['FLIR: rango 4'])
         fig.show()
-        
+
     def __repr__(self):
         return self.files[0]
-        
+
     def __str__(self):
         return self.files[0]
 
@@ -220,4 +298,3 @@ nameList = [
 
 
 Experimentos = [Experimento(filename, r'.\Data') for filename in nameList]
-
