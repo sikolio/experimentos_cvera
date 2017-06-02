@@ -1,4 +1,4 @@
-
+# Experimentos con max av en vez de FLIR
 # coding: utf-8
 
 import pandas as pd
@@ -16,7 +16,7 @@ import scipy.spatial.distance as distance
 from math import atan2,degrees
 
 #lectura de archivos
-FILE_ENDINGS = ['.csv', ' - dinamica.csv', ' - perfil.csv', ' - flir.csv']
+FILE_ENDINGS = ['.csv', ' - dinamica.csv', ' - perfil.csv', ' - max av.csv', ' - fspot.csv', ' - max av cup.csv', ' - frente.csv']
 
 #UTILS
 
@@ -152,12 +152,31 @@ class Experimento(object):
         self.dinamica = pd.read_csv(os.path.join(folder, self.files[1]), **pandas_settings)
         self.perfil = pd.read_csv(os.path.join(folder, self.files[2]), **pandas_settings)
         try:
-            self.flir = pd.read_csv(os.path.join(folder, self.files[3]), **pandas_settings)
-            self.eliminate_outliers()
+            self.temp = pd.read_csv(os.path.join(folder, self.files[3]), **pandas_settings)
+            self.temp_outliers()
         except Exception as e:
             print(e)
-            self.flir = None
-
+            self.temp = None
+        try:
+            self.temp4cup = pd.read_csv(os.path.join(folder, self.files[4]), **pandas_settings)
+            self.temp4cup_outliers()
+        except Exception as e:
+            print(e)
+            self.temp4cup = None
+            #"C:\Users\CCVV\OneDrive\TESIS\experimentos_cvera\Data\10cc50C - fspot.csv"
+        try:
+            self.tempcup = pd.read_csv(os.path.join(folder, self.files[5]), **pandas_settings)
+            self.tempcup_outliers()
+        except Exception as e:
+            print(e)
+            self.tempcup = None
+        try:
+            self.frente = pd.read_csv(os.path.join(folder, self.files[6]), **pandas_settings)
+            self.frente_outliers()
+        except Exception as e:
+            print(e)
+            self.frente = None
+ #' - max av.csv', ' -  fspot.csv', ' - max av cup.csv'
         #paso los resultados de dinamica a param para poder usarlos facilmente
         self.param['result: largo final'] = self.dinamica['avance: distancia desde punto eyeccion'].iloc[-1]
         self.param['result: largo total'] = self.dinamica['avance: largo total flujo'].iloc[-1]
@@ -181,8 +200,14 @@ class Experimento(object):
         self.param.to_csv(os.path.join(folder, self.files[0]), sep=';')
         self.dinamica.to_csv(os.path.join(folder, self.files[1]), sep=';')
         self.perfil.to_csv(os.path.join(folder, self.files[2]), sep=';')
-        if self.flir is not None:
-            self.flir.to_csv(os.path.join(folder, self.files[3]), sep=';')
+        if self.temp is not None:
+            self.temp.to_csv(os.path.join(folder, self.files[3]), sep=';')
+        if self.temp4cup is not None:
+            self.temp4cup.to_csv(os.path.join(folder, self.files[4]), sep=';')
+        if self.tempcup is not None:
+            self.tempcup.to_csv(os.path.join(folder, self.files[5]), sep=';')
+        if self.frente is not None:
+            self.frente.to_csv(os.path.join(folder, self.files[5]), sep=';')            
 
 
     #a ver si ya se ha hecho este proceso con los archivos y generar una version .old
@@ -191,12 +216,12 @@ class Experimento(object):
             os.rename('{}.old'.format(file), file)
 
     #funcion que calcula los rangos de velocidades del flir.
-    def get_ranges(self):
-        if self.flir is None:
-            return []
+    #def get_ranges(self):
+    #    if self.flir is None:
+    #        return []
 
-        tmin, tmax = self.param['min'][0], self.param['max'][0]
-        return [a for a in np.linspace(tmin, tmax, 10)]
+    #    tmin, tmax = self.param['min'][0], self.param['max'][0]
+    #    return [a for a in np.linspace(tmin, tmax, 10)]
 
     #funcion que determina en que rango esta la temperatura dada
     def rango_temperatura(self, temp):
@@ -205,16 +230,49 @@ class Experimento(object):
             return 0
         return np.digitize([temp], bins)[0]
 
-    def eliminate_outliers(self, std_count=2):
-        if self.flir is None:
+    def temp_outliers(self, std_count=2):
+        if self.temp is None:
             return None
-        df = self.flir.copy()
-        df['moving average'] = df['FLIR: area'].rolling(20, center=True).median().fillna(method='bfill').fillna(method='ffill')
-        df['moving std'] = df['FLIR: area'].rolling(20, center=True).std().fillna(method='bfill').fillna(method='ffill')
+        df = self.temp.copy()
+        df['moving average'] = df['max'].rolling(20, center=True).median().fillna(method='bfill').fillna(method='ffill')
+        df['moving std'] = df['max'].rolling(20, center=True).std().fillna(method='bfill').fillna(method='ffill')
 
-        df = df[np.abs(df['FLIR: area'] - df['moving average'])<=(2*df['moving std'])]
-        self.flir = df
-        return self.flir
+        df = df[np.abs(df['max'] - df['moving average'])<=(2*df['moving std'])]
+        self.temp = df
+        return self.temp
+    
+    def frente_outliers(self, std_count=2):
+        if self.frente is None:
+            return None
+        df = self.frente.copy()
+        df['moving average'] = df['frente'].rolling(20, center=True).median().fillna(method='bfill').fillna(method='ffill')
+        df['moving std'] = df['frente'].rolling(20, center=True).std().fillna(method='bfill').fillna(method='ffill')
+
+        df = df[np.abs(df['frente'] - df['moving average'])<=(2*df['moving std'])]
+        self.frente = df
+        return self.frente
+    
+    def tempcup_outliers(self, std_count=2):
+        if self.tempcup is None:
+            return None
+        df = self.tempcup.copy()
+        df['moving average'] = df['max'].rolling(20, center=True).median().fillna(method='bfill').fillna(method='ffill')
+        df['moving std'] = df['max'].rolling(20, center=True).std().fillna(method='bfill').fillna(method='ffill')
+
+        df = df[np.abs(df['max'] - df['moving average'])<=(2*df['moving std'])]
+        self.tempcup = df
+        return self.tempcup
+    
+    def temp4cup_outliers(self, std_count=2):
+        if self.temp4cup is None:
+            return None
+        df = self.temp4cup.copy()
+        df['moving average'] = df['sp1'].rolling(20, center=True).median().fillna(method='bfill').fillna(method='ffill')
+        df['moving std'] = df['sp1'].rolling(20, center=True).std().fillna(method='bfill').fillna(method='ffill')
+
+        df = df[np.abs(df['sp1'] - df['moving average'])<=(2*df['moving std'])]
+        self.temp4cup = df
+        return self.temp4cup
 
     #funcion para generar rectas segun x datos de DF dinamica
     def fit_to_two_curves(self):
