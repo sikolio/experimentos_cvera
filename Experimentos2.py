@@ -16,7 +16,7 @@ import scipy.spatial.distance as distance
 from math import atan2,degrees
 
 #lectura de archivos
-FILE_ENDINGS = ['.csv', ' - dinamica.csv', ' - perfil.csv', ' - max av.csv', ' - fspot.csv', ' - max av cup.csv', ' - frente.csv']
+FILE_ENDINGS = ['.csv', ' - dinamica.csv', ' - perfil.csv', ' - flir.csv', ' - max av.csv', ' - fspot.csv', ' - max av cup.csv', ' - frente.csv']
 
 #UTILS
 
@@ -152,26 +152,32 @@ class Experimento(object):
         self.dinamica = pd.read_csv(os.path.join(folder, self.files[1]), **pandas_settings)
         self.perfil = pd.read_csv(os.path.join(folder, self.files[2]), **pandas_settings)
         try:
-            self.temp = pd.read_csv(os.path.join(folder, self.files[3]), **pandas_settings)
+            self.flir = pd.read_csv(os.path.join(folder, self.files[3]), **pandas_settings)
+            self.eliminate_outliers()
+        except Exception as e:
+            print(e)
+            self.flir = None
+        try:
+            self.temp = pd.read_csv(os.path.join(folder, self.files[4]), **pandas_settings)
             self.temp_outliers()
         except Exception as e:
             print(e)
             self.temp = None
         try:
-            self.temp4cup = pd.read_csv(os.path.join(folder, self.files[4]), **pandas_settings)
+            self.temp4cup = pd.read_csv(os.path.join(folder, self.files[5]), **pandas_settings)
             self.temp4cup_outliers()
         except Exception as e:
             print(e)
             self.temp4cup = None
             #"C:\Users\CCVV\OneDrive\TESIS\experimentos_cvera\Data\10cc50C - fspot.csv"
         try:
-            self.tempcup = pd.read_csv(os.path.join(folder, self.files[5]), **pandas_settings)
+            self.tempcup = pd.read_csv(os.path.join(folder, self.files[6]), **pandas_settings)
             self.tempcup_outliers()
         except Exception as e:
             print(e)
             self.tempcup = None
         try:
-            self.frente = pd.read_csv(os.path.join(folder, self.files[6]), **pandas_settings)
+            self.frente = pd.read_csv(os.path.join(folder, self.files[7]), **pandas_settings)
             self.frente_outliers()
         except Exception as e:
             print(e)
@@ -200,20 +206,33 @@ class Experimento(object):
         self.param.to_csv(os.path.join(folder, self.files[0]), sep=';')
         self.dinamica.to_csv(os.path.join(folder, self.files[1]), sep=';')
         self.perfil.to_csv(os.path.join(folder, self.files[2]), sep=';')
+        if self.flir is not None:
+            self.flir.to_csv(os.path.join(folder, self.files[3]), sep=';')
         if self.temp is not None:
-            self.temp.to_csv(os.path.join(folder, self.files[3]), sep=';')
+            self.temp.to_csv(os.path.join(folder, self.files[4]), sep=';')
         if self.temp4cup is not None:
-            self.temp4cup.to_csv(os.path.join(folder, self.files[4]), sep=';')
+            self.temp4cup.to_csv(os.path.join(folder, self.files[5]), sep=';')
         if self.tempcup is not None:
-            self.tempcup.to_csv(os.path.join(folder, self.files[5]), sep=';')
+            self.tempcup.to_csv(os.path.join(folder, self.files[6]), sep=';')
         if self.frente is not None:
-            self.frente.to_csv(os.path.join(folder, self.files[5]), sep=';')            
+            self.frente.to_csv(os.path.join(folder, self.files[7]), sep=';')            
 
 
     #a ver si ya se ha hecho este proceso con los archivos y generar una version .old
     def undone(self):
         for file in self.files:
             os.rename('{}.old'.format(file), file)
+            
+    def eliminate_outliers(self, std_count=2):
+        if self.flir is None:
+            return None
+        df = self.flir.copy()
+        df['moving average'] = df['FLIR: area'].rolling(20, center=True).median().fillna(method='bfill').fillna(method='ffill')
+        df['moving std'] = df['FLIR: area'].rolling(20, center=True).std().fillna(method='bfill').fillna(method='ffill')
+
+        df = df[np.abs(df['FLIR: area'] - df['moving average'])<=(2*df['moving std'])]
+        self.flir = df
+        return self.flir
 
     #funcion que calcula los rangos de velocidades del flir.
     #def get_ranges(self):
